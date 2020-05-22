@@ -10,7 +10,7 @@ from detection.engine import train_one_epoch
 from detection.engine import evaluate
 
 # Finetuning Mask-R-CNN
-num_classes = 3  # counting the background
+num_classes = 4  # counting the background
 # load an instance segmentation model pre-trained on COCO
 model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
 
@@ -36,8 +36,8 @@ test_transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
-dataset = TemplateDataset("PennFudanPed", train_transform)
-test_dataset = TemplateDataset("PennFudanPed", test_transform)
+dataset = TemplateDataset("dataset", train_transform)
+test_dataset = TemplateDataset("dataset", test_transform)
 
 # split the dataset in train and val set
 val_size = int((len(dataset) / 100) * 20)
