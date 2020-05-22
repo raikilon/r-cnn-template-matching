@@ -144,6 +144,7 @@ class AugmentedDataset():
         return aug_imgs, aug_masks
 
 
+np.random.seed(1234)
 dataset = AugmentedDataset(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_images'))
 imgs, masks = dataset.get_train_data(1)
 
