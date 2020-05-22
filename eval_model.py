@@ -6,8 +6,7 @@ import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 from detection import transforms
-from detection.engine import train_one_epoch
-from detection.engine import evaluate
+from PIL import Image
 
 # Finetuning Mask-R-CNN
 num_classes = 4  # counting the background
@@ -36,51 +35,33 @@ test_transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
-dataset = TemplateDataset("dataset", train_transform)
-test_dataset = TemplateDataset("dataset", test_transform)
-
-# split the dataset in train and val set
-val_size = int((len(dataset) / 100) * 20)
+dataset = TemplateDataset("dataset", test_transform)
 torch.manual_seed(1)
-indices = torch.randperm(len(dataset)).tolist()
-dataset = torch.utils.data.Subset(dataset, indices[:-val_size])
-dataset_test = torch.utils.data.Subset(test_dataset, indices[-val_size:])
 
 # define training and validation data loaders
 data_loader = torch.utils.data.DataLoader(
-    dataset, batch_size=2, shuffle=True, num_workers=4,
+    dataset, batch_size=1, shuffle=True, num_workers=4,
     collate_fn=utils.collate_fn)
 
-data_loader_test = torch.utils.data.DataLoader(
-    dataset_test, batch_size=2, shuffle=True, num_workers=4,
-    collate_fn=utils.collate_fn)
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 # move model to the right device
 model.to(device)
 
-# construct an optimizer
-params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.SGD(params, lr=0.005,
-                            momentum=0.9, weight_decay=0.0005)
+# pick one image from the test set
+img, _ = dataset[0]
+# put the model in evaluation mode
+#model = torch.nn.DataParallel(model)
+checkpoint = torch.load("model.pth", map_location='cpu')
+model.load_state_dict(checkpoint)
+model.eval()
+with torch.no_grad():
+    prediction = model([img.to(device)])
 
-# and a learning rate scheduler which decreases the learning rate by
-# 10x every 3 epochs
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                               step_size=3,
-                                               gamma=0.1)
-
-# let's train it for 10 epochs
-num_epochs = 1
-
-for epoch in range(num_epochs):
-    # train for one epoch, printing every 10 iterations
-    train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=1)
-    # update the learning rate
-    lr_scheduler.step()
-    # evaluate on the test dataset
-    evaluate(model, data_loader_test, device=device)
-    # TODO ADD early stopping
-
-torch.save(model.state_dict(), "model.pth")
+img = Image.fromarray(img.mul(255).permute(1, 2, 0).byte().numpy())
+img.show()
+print(prediction)
+for i in range(len(prediction[0]['masks'])):
+    pred = Image.fromarray(prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy())
+    pred.show()
