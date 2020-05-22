@@ -20,8 +20,11 @@ class AugmentedDataset():
         # number of max copies of the same template in one augmented image
         self.max_templates = 3
         # maximum relation between background to template
-        self.max_temp_back_rel = 5
+        # the larger this value, the smaller is the maximum template size relative to its background
+        self.max_temp_back_rel = 4
         # min scale of template when scaling the image down
+
+        # the larger this value, the larger is the minimum template size relative to its background
         self.min_augm_scale = 0.5
         # max rotation angle in the augmentation
         self.max_augm_rot = 40.0
@@ -83,7 +86,15 @@ class AugmentedDataset():
                 while i < len(templates[k]):
                     if idx <= temp_cumsum[i]:
                         count_temp_cumsum[i] = count_temp_cumsum[i] + 1
-                        mask_array[k][y1:y2, x1:x2] = template_mask * count_temp_cumsum[i]
+
+                        #mask_array[k][y1:y2, x1:x2] = template_mask * count_temp_cumsum[i]
+
+                        for y in range(temp_height):
+                            for x in range(temp_width):
+                                if template_mask[y,x] > 0:
+                                    mask_array[k][y1+y, x1+x] = template_mask[y,x] * count_temp_cumsum[i]
+                        # mask_array[y1:y2, x1:x2] = template_mask * count_temp_cumsum[i]
+
                         break
                     else:
                         i = i + 1
@@ -121,7 +132,9 @@ class AugmentedDataset():
                 template_mask = cv2.resize(self.template_masks[j], dsize=(0, 0), fx=temp_normalization,
                                            fy=temp_normalization)
 
+
                 rand = np.random.randint(1, self.max_templates + 1)
+
                 if rand > 0:
                     augmented_templates, augmented_template_masks = self.augment_templates(template, template_mask,
                                                                                            rand)
