@@ -4,13 +4,16 @@ import os
 import matplotlib.pyplot as plt
 from scipy.ndimage import rotate
 
+
 class AugmentedDataset():
     def __init__(self, root):
         self.root = root
 
         # self.imgs_backgrounds = list(sorted(os.listdir(os.path.join(root, 'backgrounds'))))
-        self.imgs_backgrounds = list(sorted([f for f in os.listdir(os.path.join(root, 'backgrounds')) if not f.startswith('.')]))
-        self.imgs_templates = list(sorted([f for f in os.listdir(os.path.join(root, 'templates')) if not f.startswith('.')]))
+        self.imgs_backgrounds = list(
+            sorted([f for f in os.listdir(os.path.join(root, 'backgrounds')) if not f.startswith('.')]))
+        self.imgs_templates = list(
+            sorted([f for f in os.listdir(os.path.join(root, 'templates')) if not f.startswith('.')]))
 
         self.template_masks = self.create_template_masks(self.imgs_templates)
 
@@ -19,7 +22,7 @@ class AugmentedDataset():
         # maximum relation between background to template
         self.max_temp_back_rel = 5
         # min scale of template when scaling the image down
-        self.min_augm_scale = 0.4
+        self.min_augm_scale = 0.5
         # max rotation angle in the augmentation
         self.max_augm_rot = 40.0
 
@@ -29,7 +32,7 @@ class AugmentedDataset():
             template = cv2.imread(os.path.join(self.root, 'templates', template_name), cv2.IMREAD_UNCHANGED)
             alpha_channel = template[:, :, 3]
             _, template_mask = cv2.threshold(alpha_channel, 254, 1, cv2.THRESH_BINARY)
-            template_mask = template_mask.reshape((alpha_channel.shape[0],alpha_channel.shape[1]))
+            template_mask = template_mask.reshape((alpha_channel.shape[0], alpha_channel.shape[1]))
             template_masks.append(template_mask)
         return template_masks
 
@@ -42,8 +45,8 @@ class AugmentedDataset():
         augmented_template_masks = []
         for i in range(amount):
             scale = np.random.uniform(self.min_augm_scale, 1.0)
-            template = cv2.resize(template, dsize=(0,0), fx=scale, fy=scale)
-            template_mask = cv2.resize(template_mask, dsize=(0,0), fx=scale, fy=scale)
+            template = cv2.resize(template, dsize=(0, 0), fx=scale, fy=scale)
+            template_mask = cv2.resize(template_mask, dsize=(0, 0), fx=scale, fy=scale)
             angle = np.random.uniform(-self.max_augm_rot, self.max_augm_rot)
             template = rotate(template, angle)
             template_mask = rotate(template_mask, angle)
@@ -59,15 +62,16 @@ class AugmentedDataset():
         temp_cumsum = np.cumsum(temp_count)
         count_temp_cumsum = np.zeros(len(temp_count))
 
-        mask_array = np.tile(np.zeros_like(background[:,:,0]), (len(self.imgs_templates),1))
+        mask_array = [np.zeros_like(background[:, :, 0]) for _ in range(len(templates))]
 
-        if len(templates) > 0:
+        for k in range(len(templates)):
+            # if len(templates) > 0:
 
-            rand_idx_array = np.random.permutation(len(templates[0]))
+            rand_idx_array = np.random.permutation(len(templates[k]))
             print(np.shape(templates))
             for idx in rand_idx_array:
-                template = templates[0][idx]
-                template_mask = template_masks[0][idx]
+                template = templates[k][idx]
+                template_mask = template_masks[k][idx]
                 temp_height = np.shape(template)[0]
                 temp_width = np.shape(template)[1]
                 y_coord = np.random.randint(0, back_height - temp_height)
@@ -76,10 +80,10 @@ class AugmentedDataset():
                 x1, x2 = x_coord, x_coord + temp_width
 
                 i = 0
-                while i < len(templates[0]):
+                while i < len(templates[k]):
                     if idx <= temp_cumsum[i]:
                         count_temp_cumsum[i] = count_temp_cumsum[i] + 1
-                        mask_array[y1:y2, x1:x2] = template_mask * count_temp_cumsum[i]
+                        mask_array[k][y1:y2, x1:x2] = template_mask * count_temp_cumsum[i]
                         break
                     else:
                         i = i + 1
@@ -87,10 +91,10 @@ class AugmentedDataset():
                 background_mask = 1.0 - template_mask
 
                 for c in range(0, 3):
-                    background[y1:y2, x1:x2, c] = (template_mask * template[:, :, c] + background_mask * background[y1:y2, x1:x2, c])
+                    background[y1:y2, x1:x2, c] = (
+                            template_mask * template[:, :, c] + background_mask * background[y1:y2, x1:x2, c])
 
         return background, mask_array
-
 
     def get_train_data(self, amount):
         aug_imgs = []
@@ -107,27 +111,32 @@ class AugmentedDataset():
             stitch_template_masks = []
             temp_count = []
             for j in range(len(self.imgs_templates)):
-                template = cv2.imread(os.path.join(self.root, 'templates', self.imgs_templates[j]), cv2.IMREAD_UNCHANGED)
+                template = cv2.imread(os.path.join(self.root, 'templates', self.imgs_templates[j]),
+                                      cv2.IMREAD_UNCHANGED)
                 template_size = template.shape[0] * template.shape[1]
 
                 temp_back_rel = template_size / background_size
                 temp_normalization = 1 / (temp_back_rel * self.max_temp_back_rel)
-                template = cv2.resize(template, dsize=(0,0), fx=temp_normalization, fy=temp_normalization)
-                template_mask = cv2.resize(self.template_masks[j], dsize=(0, 0), fx=temp_normalization, fy=temp_normalization)
+                template = cv2.resize(template, dsize=(0, 0), fx=temp_normalization, fy=temp_normalization)
+                template_mask = cv2.resize(self.template_masks[j], dsize=(0, 0), fx=temp_normalization,
+                                           fy=temp_normalization)
 
-                rand = np.random.randint(0, self.max_templates + 1)
+                rand = np.random.randint(1, self.max_templates + 1)
                 if rand > 0:
-                    augmented_templates,  augmented_template_masks = self.augment_templates(template, template_mask, rand)
+                    augmented_templates, augmented_template_masks = self.augment_templates(template, template_mask,
+                                                                                           rand)
                     stitch_templates.append(augmented_templates)
                     stitch_template_masks.append(augmented_template_masks)
                 temp_count.append(rand)
                 # print(rand)
 
-            aug_img, aug_mask = self.stitch_templates_to_background(background, stitch_templates, stitch_template_masks, temp_count)
+            aug_img, aug_mask = self.stitch_templates_to_background(background, stitch_templates, stitch_template_masks,
+                                                                    temp_count)
 
             background_angle = np.random.uniform(-self.max_augm_rot, self.max_augm_rot)
+            for k in range(len(aug_mask)):
+                aug_mask[k] = rotate(aug_mask[k], background_angle, reshape=False)
             aug_img = rotate(aug_img, background_angle, reshape=False)
-            aug_mask = rotate(aug_mask, background_angle, reshape=False)
 
             aug_imgs.append(aug_img)
             aug_masks.append(aug_mask)
@@ -141,11 +150,16 @@ imgs, masks = dataset.get_train_data(1)
 cv2.imshow('image', imgs[0])
 cv2.waitKey()
 
-mask = cv2.threshold(masks[0], 0, 255, cv2.THRESH_BINARY)
+mask = cv2.threshold(masks[0][0], 0, 255, cv2.THRESH_BINARY)
 
 cv2.imshow('mask', mask[1])
 cv2.waitKey()
 
+
+mask = cv2.threshold(masks[0][1], 0, 255, cv2.THRESH_BINARY)
+
+cv2.imshow('mask', mask[1])
+cv2.waitKey()
 
 ### MD: Some manual tests, I will delete them later
 
