@@ -133,7 +133,7 @@ class AugmentedDataset():
                                            fy=temp_normalization)
 
 
-                rand = np.random.randint(1, self.max_templates + 1)
+                rand = np.random.randint(0, self.max_templates + 1)
 
                 if rand > 0:
                     augmented_templates, augmented_template_masks = self.augment_templates(template, template_mask,
@@ -157,9 +157,9 @@ class AugmentedDataset():
         return aug_imgs, aug_masks
 
 
-np.random.seed(1234)
+np.random.seed(283)
 dataset = AugmentedDataset(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_images'))
-imgs, masks = dataset.get_train_data(1)
+imgs, masks = dataset.get_train_data(2)
 
 cv2.imshow('image', imgs[0])
 cv2.waitKey()
