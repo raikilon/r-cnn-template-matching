@@ -121,7 +121,7 @@ class AugmentedDataset():
                     stitch_templates.append(augmented_templates)
                     stitch_template_masks.append(augmented_template_masks)
                 temp_count.append(rand)
-                print(rand)
+                # print(rand)
 
             aug_img, aug_mask = self.stitch_templates_to_background(background, stitch_templates, stitch_template_masks, temp_count)
 
@@ -141,8 +141,8 @@ imgs, masks = dataset.get_train_data(1)
 cv2.imshow('image', imgs[0])
 cv2.waitKey()
 
-mask = cv2.threshold(masks[0], 2, 255, cv2.THRESH_BINARY)
-print(np.shape(mask[1]))
+mask = cv2.threshold(masks[0], 0, 255, cv2.THRESH_BINARY)
+
 cv2.imshow('mask', mask[1])
 cv2.waitKey()
 
