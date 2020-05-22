@@ -3,7 +3,6 @@ import numpy as np
 import os
 import time
 import shutil
-from scipy.ndimage import rotate
 
 
 class AugmentedDataset():
@@ -152,7 +151,9 @@ class AugmentedDataset():
                 template_mask = cv2.resize(self.template_masks[j], dsize=(0, 0), fx=temp_normalization,
                                            fy=temp_normalization)
 
+
                 rand = np.random.randint(1, self.max_templates + 1)
+
 
                 if rand > 0:
                     augmented_templates, augmented_template_masks = self.augment_templates(template, template_mask,
@@ -197,14 +198,4 @@ dataset.get_train_data(100)
 end = time.time()
 print(end - start)
 # cv2.imshow('image', imgs[0])
-# cv2.waitKey()
 
-# mask = cv2.threshold(masks[0][0], 0, 255, cv2.THRESH_BINARY)
-
-# cv2.imshow('mask', mask[1])
-# cv2.waitKey()
-
-# mask = cv2.threshold(masks[0][1], 0, 255, cv2.THRESH_BINARY)
-
-# cv2.imshow('mask', mask[1])
-# cv2.waitKey()
