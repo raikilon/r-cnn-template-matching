@@ -29,11 +29,9 @@ class TemplateDataset(object):
         obj_ids = np.unique(mask)
         # first id is the background, so remove it
         obj_ids = obj_ids[1:]
-
         # split the color-encoded mask into a set
         # of binary masks
         masks = mask == obj_ids[:, None, None]
-
         # get bounding box coordinates for each mask
         num_objs = len(obj_ids)
         boxes = []
