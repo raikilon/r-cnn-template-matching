@@ -11,7 +11,7 @@ class AugmentedDataset():
 
         # self.imgs_backgrounds = list(sorted(os.listdir(os.path.join(root, 'backgrounds'))))
         self.imgs_backgrounds = list(
-            sorted([f for f in os.listdir(os.path.join(root, 'backgrounds2')) if not f.startswith('.')]))
+            sorted([f for f in os.listdir(os.path.join(root, 'backgrounds')) if not f.startswith('.')]))
         self.imgs_templates = list(
             sorted([f for f in os.listdir(os.path.join(root, 'templates')) if not f.startswith('.')]))
 
@@ -21,14 +21,19 @@ class AugmentedDataset():
         self.max_templates = 3
         # maximum relation between background to template
         # the larger this value, the smaller is the maximum template size relative to its background
-        self.max_temp_back_rel = 6
+        self.max_temp_back_rel = 36
         # min scale of template when scaling the image down
-
         # the larger this value, the larger is the minimum template size relative to its background
         self.min_augm_scale = 0.5
         # max rotation angle in the augmentation
         self.max_augm_rot = 20.0
         self.max_augm_rot_tem = 40.0
+        # max and min values (in percent of original) for illumination augmentation
+        self.min_illum = 0.4
+        self.max_illum = 2.5
+        # maximum perspective in given direction (must be 0<= x < 0.5)
+        # the smaller, the lesst perspective (0.0 means no added perspective)
+        self.max_perspective = 0.1
 
     def create_template_masks(self, imgs_templates):
         template_masks = []
@@ -54,6 +59,10 @@ class AugmentedDataset():
             angle = np.random.uniform(-self.max_augm_rot_tem, self.max_augm_rot_tem)
             template = self.rotate_image_keep_size(template, angle)
             template_mask = self.rotate_image_keep_size(template_mask, angle)
+            horizontal_perspective = np.random.uniform(-self.max_perspective, self.max_perspective)
+            vertical_perspective = np.random.uniform(-self.max_perspective, self.max_perspective)
+            template = self.perspective_transformation(template, horizontal_perspective, vertical_perspective)
+            template_mask = self.perspective_transformation(template_mask, horizontal_perspective, vertical_perspective)
 
             augmented_templates.append(template)
             augmented_template_masks.append(template_mask)
@@ -126,6 +135,47 @@ class AugmentedDataset():
         result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
         return result
 
+    def change_illumination(self, image, gamma):
+        # changes illumination based on gamma correction: https://en.wikipedia.org/wiki/Gamma_correction
+        invGamma = 1.0 / gamma
+        table = np.array([((i / 255.0) ** invGamma) * 255
+                          for i in np.arange(0, 256)]).astype("uint8")
+        return cv2.LUT(image, table)
+
+    def perspective_transformation(self, template, horizontal_perspective, vertical_perspective):
+        rows, cols = template.shape[:2]
+        src_points = np.float32([[0, 0], [cols - 1, 0], [0, rows - 1], [cols - 1, rows - 1]])
+
+        if (np.sign(horizontal_perspective) < 0.0) & (np.sign(vertical_perspective) < 0.0):
+            dst_points = np.float32(
+                [[int(np.abs(horizontal_perspective) / 2 * cols), int(np.abs(vertical_perspective) / 2 * rows)],
+                 [int((1 - np.abs(horizontal_perspective) / 2) * cols), 0],
+                 [0, int((1 - np.abs(vertical_perspective) / 2) * rows)],
+                 [cols - 1, rows - 1]])
+        elif (np.sign(horizontal_perspective) >= 0.0) & (np.sign(vertical_perspective) < 0.0):
+            dst_points = np.float32(
+                [[0, int(np.abs(vertical_perspective) / 2 * rows)],
+                 [cols - 1, 0],
+                 [int(np.abs(horizontal_perspective) / 2 * cols), int((1 - np.abs(vertical_perspective) / 2) * rows)],
+                 [int((1 - np.abs(horizontal_perspective) / 2) * cols), rows - 1]])
+        elif (np.sign(horizontal_perspective) < 0.0) & (np.sign(vertical_perspective) >= 0.0):
+            dst_points = np.float32(
+                [[int(np.abs(horizontal_perspective) / 2 * cols), 0],
+                 [int((1 - np.abs(horizontal_perspective) / 2) * cols), int(np.abs(vertical_perspective) / 2 * rows)],
+                 [0, rows - 1],
+                 [cols - 1, int((1 - np.abs(vertical_perspective) / 2) * rows)]])
+        else:
+            dst_points = np.float32(
+                [[0, 0],
+                 [cols - 1, int(np.abs(vertical_perspective) / 2 * rows)],
+                 [int(np.abs(horizontal_perspective) / 2 * cols), rows - 1],
+                 [int((1 - np.abs(horizontal_perspective) / 2) * cols),
+                  int((1 - np.abs(vertical_perspective) / 2) * rows)]])
+
+        projective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+        aug_template = cv2.warpPerspective(template, projective_matrix, (cols, rows))
+        return aug_template
+
     def get_train_data(self, amount):
         aug_imgs = []
         aug_masks = []
@@ -134,7 +184,7 @@ class AugmentedDataset():
         for i in range(amount):
             print("Image: {}".format(i))
             background_name = self.get_random_background()
-            background = cv2.imread(os.path.join(self.root, 'backgrounds2', background_name), cv2.IMREAD_UNCHANGED)
+            background = cv2.imread(os.path.join(self.root, 'backgrounds', background_name), cv2.IMREAD_UNCHANGED)
             background_size = background.shape[0] * background.shape[1]
 
             stitch_templates = []
@@ -146,7 +196,7 @@ class AugmentedDataset():
                 template_size = template.shape[0] * template.shape[1]
 
                 temp_back_rel = template_size / background_size
-                temp_normalization = 1 / (temp_back_rel * self.max_temp_back_rel)
+                temp_normalization = 1 / np.sqrt(temp_back_rel * self.max_temp_back_rel)
                 template = cv2.resize(template, dsize=(0, 0), fx=temp_normalization, fy=temp_normalization)
                 template_mask = cv2.resize(self.template_masks[j], dsize=(0, 0), fx=temp_normalization,
                                            fy=temp_normalization)
@@ -168,18 +218,28 @@ class AugmentedDataset():
             aug_img, aug_mask = self.stitch_templates_to_background(background, stitch_templates, stitch_template_masks,
                                                                     temp_count)
 
+
+            # rotate the stitched images and masks for rotation augmentation
             for k in range(len(aug_mask)):
                 aug_mask[k] = self.rotate_image(aug_mask[k], background_angle)
             aug_img = self.rotate_image(aug_img, background_angle)
 
+            # change the illumination of the stitches images for illumination augmentation
+            gamma = np.random.uniform(self.min_illum, self.max_illum)
+            aug_img = self.change_illumination(aug_img, gamma=gamma)
+
             cv2.imwrite("dataset/images/{}.png".format(i), aug_img)
+            os.mkdir("dataset/masks/{}".format(i))
+
+            # uncomment to show images created
             # aug_imgs.append(aug_img)
             # aug_masks.append(aug_mask)
-            os.mkdir("dataset/masks/{}".format(i))
             # cv2.imshow('image', aug_img)
             # cv2.waitKey()
             for k, aug_m in enumerate(aug_mask):
                 cv2.imwrite("dataset/masks/{}/{}.png".format(i, k), aug_m)
+
+                # uncomment to show images and masks created
                 # mask = cv2.threshold(aug_m, 0, 255, cv2.THRESH_BINARY)
                 # cv2.imshow('mask', mask[1])
                 # cv2.waitKey()
@@ -188,14 +248,51 @@ class AugmentedDataset():
 
 start = time.time()
 
-np.random.seed(123456)
+np.random.seed(13845)
 shutil.rmtree("dataset")
 os.mkdir("dataset")
 os.mkdir("dataset/images")
 os.mkdir("dataset/masks")
 dataset = AugmentedDataset(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images'))
-dataset.get_train_data(20)
+dataset.get_train_data(5)
 end = time.time()
 print(end - start)
-# cv2.imshow('image', imgs[0])
+# # cv2.imshow('image', imgs[0])
 
+# def perspective_transformation(template, horizontal_perspective, vertical_perspective):
+#     rows, cols = template.shape[:2]
+#     src_points = np.float32([[0, 0], [cols - 1, 0], [0, rows - 1], [cols - 1, rows - 1]])
+#
+#     if (np.sign(horizontal_perspective) < 0.0) & (np.sign(vertical_perspective) < 0.0):
+#         dst_points = np.float32([[int(np.abs(horizontal_perspective) / 2 * cols), int(np.abs(vertical_perspective) / 2 * rows)],
+#                                  [int((1 - np.abs(horizontal_perspective) / 2) * cols), 0],
+#                                  [0, int((1-np.abs(vertical_perspective)/2) * rows)],
+#                                  [cols - 1, rows - 1]])
+#     elif (np.sign(horizontal_perspective) >= 0.0) & (np.sign(vertical_perspective) < 0.0):
+#         dst_points = np.float32(
+#             [[0, int(np.abs(vertical_perspective) / 2 * rows)],
+#              [cols - 1, 0],
+#              [int(np.abs(horizontal_perspective)/2 * cols), int((1-np.abs(vertical_perspective)/2) * rows)],
+#              [int((1-np.abs(horizontal_perspective)/2) * cols), rows - 1]])
+#     elif (np.sign(horizontal_perspective) < 0.0) & (np.sign(vertical_perspective) >= 0.0):
+#         dst_points = np.float32(
+#             [[int(np.abs(horizontal_perspective) / 2 * cols), 0],
+#              [int((1 - np.abs(horizontal_perspective) / 2) * cols), int(np.abs(vertical_perspective) / 2 * rows)],
+#              [0, rows - 1],
+#              [cols - 1, int((1-np.abs(vertical_perspective)/2) * rows)]])
+#     else:
+#         dst_points = np.float32(
+#             [[0, 0],
+#              [cols - 1, int(np.abs(vertical_perspective) / 2 * rows)],
+#              [int(np.abs(horizontal_perspective)/2 * cols), rows - 1],
+#              [int((1-np.abs(horizontal_perspective)/2) * cols), int((1-np.abs(vertical_perspective)/2) * rows)]])
+#
+#     projective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+#     aug_template = cv2.warpPerspective(template, projective_matrix, (cols, rows))
+#     return aug_template
+#
+# root = '/Users/michaeldenzler/Documents/ComputerVision/r-cnn-template-matching/images/backgrounds/scene1.jpg'
+# img = cv2.imread(root, 1)
+# img = perspective_transformation(img, 0.2, -0.3)
+# cv2.imshow('img', img)
+# cv2.waitKey()
