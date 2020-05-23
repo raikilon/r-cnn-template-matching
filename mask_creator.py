@@ -188,12 +188,12 @@ class AugmentedDataset():
 
 start = time.time()
 
-np.random.seed(12345)
+np.random.seed(123456)
 shutil.rmtree("dataset")
 os.mkdir("dataset")
 os.mkdir("dataset/images")
 os.mkdir("dataset/masks")
-dataset = AugmentedDataset(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_images'))
+dataset = AugmentedDataset(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images'))
 dataset.get_train_data(20)
 end = time.time()
 print(end - start)

@@ -7,6 +7,8 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 from detection import transforms
 from PIL import Image
+import numpy as np
+import cv2
 
 # Finetuning Mask-R-CNN
 num_classes = 4  # counting the background
@@ -43,25 +45,45 @@ data_loader = torch.utils.data.DataLoader(
     dataset, batch_size=1, shuffle=True, num_workers=4,
     collate_fn=utils.collate_fn)
 
-
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 # move model to the right device
 model.to(device)
 
 # pick one image from the test set
-img, _ = dataset[0]
+img, _ = dataset[6]
 # put the model in evaluation mode
-#model = torch.nn.DataParallel(model)
+# model = torch.nn.DataParallel(model)
 checkpoint = torch.load("model.pth", map_location='cpu')
 model.load_state_dict(checkpoint)
 model.eval()
 with torch.no_grad():
     prediction = model([img.to(device)])
-
-img = Image.fromarray(img.mul(255).permute(1, 2, 0).byte().numpy())
-img.show()
 print(prediction)
+img = img.mul(255).permute(1, 2, 0).byte().numpy().astype('float16')
+img /= 255.0
+green = np.ones(img.shape, dtype=np.float) * (0, 1, 0)
+red = np.ones(img.shape, dtype=np.float) * (1, 0, 0)
+blue = np.ones(img.shape, dtype=np.float) * (0, 0, 1)
+# set transparency to 25%
+transparency = .5
+
 for i in range(len(prediction[0]['masks'])):
-    pred = Image.fromarray(prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy())
-    pred.show()
+    if prediction[0]['scores'][i].cpu().numpy() > 0.5:
+        mask = prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy()
+        mask = np.array(mask, dtype=np.float)
+        mask /= 255.0
+
+        mask *= transparency
+        mask = np.expand_dims(mask, axis=2)
+        if prediction[0]['labels'][i].cpu().numpy() == 1:
+            img = red * mask + img * (1.0 - mask)
+        if prediction[0]['labels'][i].cpu().numpy() == 2:
+            img = blue * mask + img * (1.0 - mask)
+        if prediction[0]['labels'][i].cpu().numpy() == 3:
+            img = green * mask + img * (1.0 - mask)
+
+        # cv2.imshow('mask', out)
+        # v2.waitKey()
+
+cv2.imwrite("out.png", cv2.cvtColor((img * 255).astype(np.uint8), cv2.COLOR_RGB2BGR))
