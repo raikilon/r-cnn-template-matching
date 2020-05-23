@@ -9,7 +9,9 @@ from detection import transforms
 from PIL import Image
 import numpy as np
 import cv2
+import time
 
+start = time.time()
 # Finetuning Mask-R-CNN
 num_classes = 4  # counting the background
 # load an instance segmentation model pre-trained on COCO
@@ -51,10 +53,10 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 model.to(device)
 
 # pick one image from the test set
-img, _ = dataset[6]
+img, _ = dataset[0]
 # put the model in evaluation mode
 # model = torch.nn.DataParallel(model)
-checkpoint = torch.load("model.pth", map_location='cpu')
+checkpoint = torch.load("simple.pth", map_location='cpu')
 model.load_state_dict(checkpoint)
 model.eval()
 with torch.no_grad():
@@ -87,3 +89,5 @@ for i in range(len(prediction[0]['masks'])):
         # v2.waitKey()
 
 cv2.imwrite("out.png", cv2.cvtColor((img * 255).astype(np.uint8), cv2.COLOR_RGB2BGR))
+end = time.time()
+print(end - start)

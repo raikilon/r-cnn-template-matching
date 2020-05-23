@@ -11,7 +11,7 @@ class AugmentedDataset():
 
         # self.imgs_backgrounds = list(sorted(os.listdir(os.path.join(root, 'backgrounds'))))
         self.imgs_backgrounds = list(
-            sorted([f for f in os.listdir(os.path.join(root, 'backgrounds')) if not f.startswith('.')]))
+            sorted([f for f in os.listdir(os.path.join(root, 'backgrounds2')) if not f.startswith('.')]))
         self.imgs_templates = list(
             sorted([f for f in os.listdir(os.path.join(root, 'templates')) if not f.startswith('.')]))
 
@@ -134,7 +134,7 @@ class AugmentedDataset():
         for i in range(amount):
             print("Image: {}".format(i))
             background_name = self.get_random_background()
-            background = cv2.imread(os.path.join(self.root, 'backgrounds', background_name), cv2.IMREAD_UNCHANGED)
+            background = cv2.imread(os.path.join(self.root, 'backgrounds2', background_name), cv2.IMREAD_UNCHANGED)
             background_size = background.shape[0] * background.shape[1]
 
             stitch_templates = []
