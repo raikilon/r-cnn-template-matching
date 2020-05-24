@@ -53,10 +53,11 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 model.to(device)
 
 # pick one image from the test set
-img, _ = dataset[0]
+img, _ = dataset[2]
+
 # put the model in evaluation mode
 # model = torch.nn.DataParallel(model)
-checkpoint = torch.load("simple.pth", map_location='cpu')
+checkpoint = torch.load("model.pth", map_location='cpu')
 model.load_state_dict(checkpoint)
 model.eval()
 with torch.no_grad():
