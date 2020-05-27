@@ -8,14 +8,14 @@ If you want to have more information about our implementaiton please look at pro
 
 ### Get training data
 
-To get the training data please execute the `mask_creator.py` script but first create an empty folder called `dataset` and put the templates under `images/templates`and backgrounds under ìmages/templates`.
+To get the training data please execute the `mask_creator.py` script but first create an empty folder called `dataset` and put the templates under `images/templates` and the backgrounds under `images/templates`.
 
 ### Train model
 
 To train the model execute the file `model.py`.
 
 ### Test model
-To test the model execute the `eval_model.py` file. This script will take the first element inside `dataset/images` and it will output the annotated image in the main directory.
+To test the model execute the `eval_model.py` file. This script will take the first element inside `dataset/images` and it will output the annotated image in the root directory.
 
 
 ## Results
