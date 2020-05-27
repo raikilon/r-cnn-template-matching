@@ -17,12 +17,12 @@ To train the model execute the file `model.py`.
 ### Test model
 To test the model execute the `eval_model.py` file. This script will take the first element inside `dataset/images` and it will output the annotated image in the main directory.
 
-### Contacts 
-
-If you have any doubts please contact us at noli.manzoni@usi.ch or michael.denzler@usi.ch
 
 ## Results
 Each template is annotated with a different color.
 
 ![results](https://github.com/raikilon/r-cnn-template-matching/blob/master/images/results/trainig_on_rooms/8.png)
 
+## Contacts 
+
+If you have any doubts please contact us at noli.manzoni@usi.ch or michael.denzler@usi.ch

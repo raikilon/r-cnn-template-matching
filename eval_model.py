@@ -53,7 +53,7 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 model.to(device)
 
 # pick one image from the test set
-img, _ = dataset[2]
+img, _ = dataset[0]
 
 # put the model in evaluation mode
 # model = torch.nn.DataParallel(model)

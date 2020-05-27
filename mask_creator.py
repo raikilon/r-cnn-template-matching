@@ -21,19 +21,19 @@ class AugmentedDataset():
         self.max_templates = 3
         # maximum relation between background to template
         # the larger this value, the smaller is the maximum template size relative to its background
-        self.max_temp_back_rel = 36
+        self.max_temp_back_rel = 2
         # min scale of template when scaling the image down
         # the larger this value, the larger is the minimum template size relative to its background
-        self.min_augm_scale = 0.5
+        self.min_augm_scale = 0.9
         # max rotation angle in the augmentation
         self.max_augm_rot = 20.0
         self.max_augm_rot_tem = 40.0
         # max and min values (in percent of original) for illumination augmentation
-        self.min_illum = 0.4
+        self.min_illum = 0.2
         self.max_illum = 2.5
         # maximum perspective in given direction (must be 0<= x < 0.5)
         # the smaller, the lesst perspective (0.0 means no added perspective)
-        self.max_perspective = 0.1
+        self.max_perspective = 0.2
 
     def create_template_masks(self, imgs_templates):
         template_masks = []
