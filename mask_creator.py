@@ -34,6 +34,8 @@ class AugmentedDataset():
         # maximum perspective in given direction (must be 0<= x < 0.5)
         # the smaller, the lesst perspective (0.0 means no added perspective)
         self.max_perspective = 0.2
+        # maximum blur for image augmentation
+        self.max_blur = 2.0
 
     def create_template_masks(self, imgs_templates):
         template_masks = []
@@ -55,7 +57,7 @@ class AugmentedDataset():
         for i in range(amount):
             scale = np.random.uniform(self.min_augm_scale, 1.0)
             template = cv2.resize(template, dsize=(0, 0), fx=scale, fy=scale)
-            template_mask = cv2.resize(template_mask, dsize=(0, 0), fx=scale, fy=scale)
+            template_mask = cv2.resize(template_mask, dsize=(0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
             angle = np.random.uniform(-self.max_augm_rot_tem, self.max_augm_rot_tem)
             template = self.rotate_image_keep_size(template, angle)
             template_mask = self.rotate_image_keep_size(template_mask, angle)
@@ -126,13 +128,13 @@ class AugmentedDataset():
         M[0, 2] += tx  # third column of matrix holds translation, which takes effect after rotation.
         M[1, 2] += ty
 
-        rotatedImg = cv2.warpAffine(img, M, dsize=(int(newX), int(newY)))
+        rotatedImg = cv2.warpAffine(img, M, dsize=(int(newX), int(newY)), flags=cv2.INTER_LANCZOS4)
         return rotatedImg
 
     def rotate_image(self, image, angle):
         image_center = tuple(np.array(image.shape[1::-1]) / 2)
         rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-        result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+        result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LANCZOS4)
         return result
 
     def change_illumination(self, image, gamma):
@@ -173,8 +175,12 @@ class AugmentedDataset():
                   int((1 - np.abs(vertical_perspective) / 2) * rows)]])
 
         projective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
-        aug_template = cv2.warpPerspective(template, projective_matrix, (cols, rows))
+        aug_template = cv2.warpPerspective(template, projective_matrix, (cols, rows), flags=cv2.INTER_LANCZOS4)
         return aug_template
+
+    def blurr_image(self, image, sigma):
+        image = cv2.GaussianBlur(image, (0,0), sigmaX=sigma)
+        return image
 
     def get_train_data(self, amount):
         aug_imgs = []
@@ -197,9 +203,10 @@ class AugmentedDataset():
 
                 temp_back_rel = template_size / background_size
                 temp_normalization = 1 / np.sqrt(temp_back_rel * self.max_temp_back_rel)
-                template = cv2.resize(template, dsize=(0, 0), fx=temp_normalization, fy=temp_normalization)
+                template = cv2.resize(template, dsize=(0, 0), fx=temp_normalization, fy=temp_normalization,
+                                      interpolation=cv2.INTER_AREA)
                 template_mask = cv2.resize(self.template_masks[j], dsize=(0, 0), fx=temp_normalization,
-                                           fy=temp_normalization)
+                                           fy=temp_normalization, interpolation=cv2.INTER_AREA)
 
 
                 rand = np.random.randint(1, self.max_templates + 1)
@@ -218,6 +225,8 @@ class AugmentedDataset():
             aug_img, aug_mask = self.stitch_templates_to_background(background, stitch_templates, stitch_template_masks,
                                                                     temp_count)
 
+            rand_sigma = np.random.uniform(self.max_blur)
+            aug_img = self.blurr_image(aug_img, rand_sigma)
 
             # rotate the stitched images and masks for rotation augmentation
             for k in range(len(aug_mask)):
