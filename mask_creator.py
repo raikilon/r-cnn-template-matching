@@ -21,10 +21,10 @@ class AugmentedDataset():
         self.max_templates = 3
         # maximum relation between background to template
         # the larger this value, the smaller is the maximum template size relative to its background
-        self.max_temp_back_rel = 2
+        self.max_temp_back_rel = 20
         # min scale of template when scaling the image down
         # the larger this value, the larger is the minimum template size relative to its background
-        self.min_augm_scale = 0.9
+        self.min_augm_scale = 0.7
         # max rotation angle in the augmentation
         self.max_augm_rot = 20.0
         self.max_augm_rot_tem = 40.0
@@ -35,7 +35,7 @@ class AugmentedDataset():
         # the smaller, the lesst perspective (0.0 means no added perspective)
         self.max_perspective = 0.2
         # maximum blur for image augmentation
-        self.max_blur = 2.0
+        self.max_blur = 3.0
 
     def create_template_masks(self, imgs_templates):
         template_masks = []
@@ -225,9 +225,6 @@ class AugmentedDataset():
             aug_img, aug_mask = self.stitch_templates_to_background(background, stitch_templates, stitch_template_masks,
                                                                     temp_count)
 
-            rand_sigma = np.random.uniform(self.max_blur)
-            aug_img = self.blurr_image(aug_img, rand_sigma)
-
             # rotate the stitched images and masks for rotation augmentation
             for k in range(len(aug_mask)):
                 aug_mask[k] = self.rotate_image(aug_mask[k], background_angle)
@@ -237,8 +234,13 @@ class AugmentedDataset():
             gamma = np.random.uniform(self.min_illum, self.max_illum)
             aug_img = self.change_illumination(aug_img, gamma=gamma)
 
+            # introduce Gaussian blur to the stitches images for blur augmentation
+            sigma = np.random.uniform(self.max_blur)
+            aug_img = self.blurr_image(aug_img, sigma)
+
             cv2.imwrite("dataset/images/{}.png".format(i), aug_img)
             os.mkdir("dataset/masks/{}".format(i))
+            # os.mkdir("dataset/visible_masks/{}".format(i))
 
             # uncomment to show images created
             # aug_imgs.append(aug_img)
@@ -252,16 +254,19 @@ class AugmentedDataset():
                 # mask = cv2.threshold(aug_m, 0, 255, cv2.THRESH_BINARY)
                 # cv2.imshow('mask', mask[1])
                 # cv2.waitKey()
+
+                # cv2.imwrite("dataset/visible_masks/{}/{}.png".format(i, k), mask[1])
         # return aug_imgs, aug_masks
 
 
 start = time.time()
 
-np.random.seed(13845)
+np.random.seed(13245)
 shutil.rmtree("dataset")
 os.mkdir("dataset")
 os.mkdir("dataset/images")
 os.mkdir("dataset/masks")
+# os.mkdir("dataset/visible_masks")
 dataset = AugmentedDataset(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images'))
 dataset.get_train_data(5)
 end = time.time()
