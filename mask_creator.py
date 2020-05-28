@@ -131,10 +131,10 @@ class AugmentedDataset():
         rotatedImg = cv2.warpAffine(img, M, dsize=(int(newX), int(newY)), flags=cv2.INTER_LANCZOS4)
         return rotatedImg
 
-    def rotate_image(self, image, angle):
+    def rotate_image(self, image, angle, inter=cv2.INTER_LANCZOS4):
         image_center = tuple(np.array(image.shape[1::-1]) / 2)
         rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-        result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LANCZOS4)
+        result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=inter)
         return result
 
     def change_illumination(self, image, gamma):
@@ -179,7 +179,7 @@ class AugmentedDataset():
         return aug_template
 
     def blurr_image(self, image, sigma):
-        image = cv2.GaussianBlur(image, (0,0), sigmaX=sigma)
+        image = cv2.GaussianBlur(image, (0, 0), sigmaX=sigma)
         return image
 
     def get_train_data(self, amount):
@@ -208,9 +208,7 @@ class AugmentedDataset():
                 template_mask = cv2.resize(self.template_masks[j], dsize=(0, 0), fx=temp_normalization,
                                            fy=temp_normalization, interpolation=cv2.INTER_AREA)
 
-
                 rand = np.random.randint(1, self.max_templates + 1)
-
 
                 if rand > 0:
                     augmented_templates, augmented_template_masks = self.augment_templates(template, template_mask,
@@ -230,7 +228,7 @@ class AugmentedDataset():
 
             # rotate the stitched images and masks for rotation augmentation
             for k in range(len(aug_mask)):
-                aug_mask[k] = self.rotate_image(aug_mask[k], background_angle)
+                aug_mask[k] = self.rotate_image(aug_mask[k], background_angle, cv2.INTER_LINEAR)
             aug_img = self.rotate_image(aug_img, background_angle)
 
             # change the illumination of the stitches images for illumination augmentation
