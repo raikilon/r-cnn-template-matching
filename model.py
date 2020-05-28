@@ -61,6 +61,7 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 model.to(device)
 
 # construct an optimizer
+# here give to the optimizer only the parameters that will change (fine tuning or transfer learning)
 params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.SGD(params, lr=0.005,
                             momentum=0.9, weight_decay=0.0005)
@@ -83,4 +84,5 @@ for epoch in range(num_epochs):
     evaluate(model, data_loader_test, device=device)
     # TODO ADD early stopping
 
+# save model for later use
 torch.save(model.state_dict(), "model.pth")

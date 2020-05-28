@@ -24,6 +24,7 @@ class TemplateDataset(object):
         boxes = []
         labels = []
         final_masks = []
+        # go over all the templates
         for n, m in enumerate(sorted(os.listdir(os.path.join(mask_path)))):
             mask = Image.open(os.path.join(mask_path, m))
             # convert the PIL Image into a numpy array
@@ -37,7 +38,7 @@ class TemplateDataset(object):
             masks = mask == obj_ids[:, None, None]
             # get bounding box coordinates for each mask
             num_objs = len(obj_ids)
-
+            # save bounding box
             for i in range(num_objs):
                 pos = np.where(masks[i])
                 xmin = np.min(pos[1])
@@ -45,11 +46,12 @@ class TemplateDataset(object):
                 ymin = np.min(pos[0])
                 ymax = np.max(pos[0])
                 boxes.append([xmin, ymin, xmax, ymax])
+            # save correct labels for training
             labels.extend([n + 1 for _ in range(num_objs)])
             final_masks.extend(masks)
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        # there is only one class
+        # create tensor
         labels = torch.as_tensor(labels, dtype=torch.int64)
         masks = torch.as_tensor(final_masks, dtype=torch.uint8)
 
